@@ -92,7 +92,7 @@
   @param base_point Отступ от начала координат
   @param radius Радиус основания кнопки
   @param height Высота кнопки
-  @param rounding Радиус скругления кнопки
+  @param rounding Радиус скругления кнопки (меньше радиуса)
   @returns Объект кнопки
 |; 
 (defun draw_button (base_point radius height rounding)
@@ -148,7 +148,7 @@
   (command "_ucs" neg_base_point "")
 )
 (defun c:draw_button_test ()
-  (draw_button (list 0 0 0) 10 15 7)
+  (draw_button (list 0 0 0) 10 10 9.9)
 )
 
 ;#endregion
@@ -191,12 +191,17 @@
   (setq buttons_count (getreal "Укажите количество кнопок: "))
   ; Надо сделать проверку, чтобы отступ от нижней был не оч большой, а от боковых - не пересекался
   (setq buttons_offset (getreal "Укажите отсутп кнопок от нижней и боковых граней: "))
-  ; Зная предыдущие данные, нужно посчитать, сколько кнопок максимум, чтобы хотябы был зазор
+  ; Зная предыдущие данные, нужно посчитать, радиус кнопок максимум, чтобы хотя бы был зазор
   (setq button_radius (getreal "Укажите радиус кнопок: "))
   (setq button_height (getreal "Укажите высоту кнопок: "))
   ; Нужно будет делить на 2, тк в методе радиус
-  (setq button_rounding_diameter (getreal "Укажите диаметр закруглений краёв кнопок: "))
-    
+  (setq button_rounding_radius (getreal "Укажите радиус закруглений краёв кнопок: "))
+
+  (while (or (>= button_rounding_radius button_height) (>= button_rounding_radius button_radius))
+    (princ "Радиус закругления должен быть меньше высоты и радиуса кнопки.\n Повторите ввод высоты всей фигуры ")
+    (setq button_rounding_radius (getreal))
+  )
+  (draw_button (list 0 0 0) button_radius button_height button_rounding_radius)
   
     
   ;======================================
