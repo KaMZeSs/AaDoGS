@@ -150,31 +150,6 @@
 
 ;#endregion
 
-;#region Построение массива элементов на линии
-
-;|
-  @global
-  Функция для создания массива объектов по линии
-  @param obj Объект-элемент массива
-  @param radius Радиус объекта
-  @param obj_count Количество объектов в массиве
-  @param pt1 Массив точек / Путь построения массива
-  @param pt2 Массив точек / Путь построения массива
-  @returns Объект массива
-|; 
-(defun array_of_obj (obj radius obj_count pt1 pt2)
-  (command "_move" obj "" (list 0 0 0) pt1 "")
-  (command "_move" obj "" (list 0 0 0) (list (- 0 radius) radius 0) "")
-  (setq dist (distance pt1 pt2))
-  (setq dist (- dist (* 2 radius)))
-  (setq dist (/ dist (1- obj_count)))
-  (command "_arrayrect" obj "" "_count" obj_count 1 "_spacing" dist dist "_exit")
-  (setq arr (entlast))
-)
-
-;#endregion
-
-
 (defun c:course ()
   ;====================================
   ; Сохранение исходных привязок
@@ -200,15 +175,31 @@
   (setq body_len (getreal "Укажите длину корпуса: "))
   (setq body_width (getreal "Укажите ширину корпуса: "))
   (setq body_height (getreal "Укажите высоту корпуса: "))
-  (setq body_rounding (getreal "Укажите радиус скругления: "))
-  (while (or (>= (* 2 body_rounding) body_width) (>= (* 2 body_rounding) body_len))
-    (princ "Радиус закругления должен быть в два раза меньше ширины и длины кнопки.\n Повторите ввод радиуса скругления ")
-    (setq body_rounding (getreal))
+  
+  (setq body_rounding nil)
+  (while (= body_rounding nil)
+    (setq if_checker 1)
+    (setq body_rounding (getreal "Укажите диаметр скругления: "))
+    (if (>= body_rounding body_width)
+      (progn
+        (princ "Диаметр закругления должен быть меньше ширины экрана.\n")
+        (setq if_checker 0)
+      )
+    )
+    (if (>= body_rounding body_len)
+      (progn
+        (princ "Диаметр закругления должен быть меньше длины экрана.\n")
+        (setq if_checker 0)
+      )
+    )
+    (if (= if_checker 0)
+      (setq body_rounding nil)
+    )
   )
   
   ; Построение главного бокса
-  (rounded_rect (list 0 0 0) body_len body_width body_height body_rounding)
-  (setq mainbox (entlast))
+  (rounded_rect (list 0 0 0) body_len body_width body_height (/ body_rounding 2))
+  (setq mainbody_box (entlast))
   
   ;====================================
   ; Построение кнопок
@@ -216,45 +207,100 @@
   ; Ввод значений для массива кнопок
   (initget (+ 1 2 4))
   (setq buttons_count (getreal "Укажите количество кнопок: "))
-  (setq buttons_offset (getreal "Укажите отсутп кнопок от нижней и боковых граней: "))
-  (while (or (< buttons_offset body_rounding) (>= (* 2 buttons_offset) body_width))
-    (princ "Отсутп должен быть больше радиуса округления корпуса.\n Отсутп должен быть меньше половины ширины корпуса.\n Повторите ввод отсутпа ")
-    (setq button_rounding_radius (getreal))
-  )
   
-  ; Зная предыдущие данные, нужно посчитать, радиус кнопок максимум, чтобы хотя бы был зазор
+  (setq buttons_offset nil)
+  (while (= buttons_offset nil)
+    (setq if_checker 1)
+    (setq buttons_offset (getreal "Укажите отсутп кнопок от нижней и боковых граней: "))
+    (if (< buttons_offset (/ body_rounding 2))
+      (progn
+        (princ "Отсутп должен быть больше радиуса округления корпуса.\n")
+        (setq if_checker 0)
+      )
+    )
+    (if (>= (* 2 buttons_offset) body_width)
+      (progn
+        (princ "Отсутп должен быть меньше половины ширины корпуса.\n")
+        (setq if_checker 0)
+      )
+    )
+    (if (= if_checker 0)
+      (setq buttons_offset nil)
+    )
+  )
   
   (setq button_radius nil)
   (while (= button_radius nil)
+    (setq if_checker 1)
     (setq button_radius (getreal "Укажите радиус кнопок: "))
     (if (>= (* buttons_count (* 2 button_radius)) (- body_width (* 2 buttons_offset)))
       (progn
-        (princ "При данном радиусе кнопки не влезают в корпус.\n Повторите ввод отсутпа ")
-        (setq button_radius nil)
-      )
-      
-      (if (>= button_radius (- body_len buttons_offset))
-        (progn
-          (princ "При данном радиусе кнопки не влезают в корпус.\n Повторите ввод отсутпа ")
-          (setq button_radius nil)
-        )
+        (princ "При данном радиусе кнопки не влезают в корпус.\n")
+        (setq if_checker 0)
       )
     )
+    (if (>= button_radius (- body_len buttons_offset))
+      (progn
+        (princ "При данном радиусе кнопки не влезают в корпус.\n")
+        (setq if_checker 0)
+      )
+    )
+    (if (= if_checker 0)
+      (setq button_radius nil)
+    )
   )
+  
   (setq button_height (getreal "Укажите высоту кнопок: "))
   
-  (setq button_rounding_radius (getreal "Укажите радиус закруглений краёв кнопок: "))
-  (while (or (>= button_rounding_radius button_height) (>= button_rounding_radius button_radius))
-    (princ "Радиус закругления должен быть меньше высоты и радиуса кнопки.\n Повторите ввод закругления фигуры ")
-    (setq button_rounding_radius (getreal))
+  (setq button_rounding_diameter nil)
+  (while (= button_rounding_diameter nil)
+    (setq if_checker 1)
+    (setq button_rounding_diameter (getreal "Укажите диаметр закруглений краёв кнопок: "))
+    (if (>= button_rounding_diameter (* 2 button_height))
+      (progn
+        (princ "Диаметр закругления должен быть в два раза меньше высоты.\n")
+        (setq if_checker 0)
+      )
+    )
+    (if (>= button_rounding_diameter (* 2 button_radius))
+      (progn
+        (princ "Диаметр закругления должен быть в два раза меньше радиуса.\n")
+        (setq if_checker 0)
+      )
+    )
+    (if (= if_checker 0)
+      (setq button_rounding_diameter nil)
+    )
   )
-  (draw_button (list 0 0 0) button_radius button_height button_rounding_radius)
-  (setq button_body (entlast))
+  (setq button_rounding_radius (/ button_rounding_diameter 2))
+  
+  ; (draw_button (list 0 0 0) button_radius button_height button_rounding_radius)
+  ; (setq button_body (entlast))
   
   ; Строим массив
   (setq pt1 (list (- body_len buttons_offset) buttons_offset body_height))
   (setq pt2 (list (- body_len buttons_offset) (- body_width buttons_offset) body_height))
-  (array_of_obj button_body button_radius buttons_count pt1 pt2)
+  
+  ; (command "_move" button_body "" (list 0 0 0) pt1 "")
+  ; (command "_move" button_body "" (list 0 0 0) (list (- 0 button_radius) button_radius 0) "")
+  (setq dist (distance pt1 pt2))
+  (setq dist (- dist (* 2 button_radius)))
+  (setq dist (/ dist (1- buttons_count)))
+  (setq new_obj_count buttons_count)
+   
+  ; Каждый раз надо рисовать новую кнопку
+  (setq lastobj button_body)
+  (setq offset 0)
+  (while (> new_obj_count 0)
+    (setq new_obj_count (- new_obj_count 1))
+    (draw_button (list (- (- body_len button_radius) buttons_offset) (+ buttons_offset (+ buttons_offset offset)) body_height) button_radius button_height button_rounding_radius)
+    (setq offset (+ offset dist))
+    ; (command "_copy" lastobj "" "_d" (list 0 dist 0) "")
+    ; (setq lastobj2 (entlast))
+    (command "_union" mainbody_box (entlast) "")
+    (setq lastobj lastobj2)
+  )
+  
   
   ;====================================
   ; Построение экрана
@@ -263,22 +309,22 @@
   (setq screen_offset nil)
   (while (= screen_offset nil)
     (setq if_checker 1)
-    (setq screen_offset (getreal "Укажите отступ экрана от кнопок, от верхней и боковых граней: "))
+    (setq screen_offset (getreal "Укажите отступ экрана от кнопок, боковых и верхней граней "))
     (if (>= (* 2 screen_offset) body_width)
       (progn
-        (princ "При данном отступе, экран не влезает в корпус по ширине.\n")
+        (princ "Отступ экрана должен быть в два раза меньше ширины корпуса.\n")
         (setq if_checker 0)
       )
     )
-    (if (< screen_offset body_rounding)
+    (if (>= (* 2 screen_offset) (- body_len (+ buttons_offset (* 2 button_radius))))
       (progn
-        (princ "Отступ экрана должен быть не меньше радиуса округления корпуса.\n")
+        (princ "При данном отступе, экран не влезает по длине корпуса.\n")
         (setq if_checker 0)
       )
     )
-    (if (>= (+ (* 2 screen_offset) (+ buttons_offset (* 2 button_radius))) body_len)
+    (if (< screen_offset (/ body_rounding 2))
       (progn
-        (princ "При данном отступе, экран не влезает в корпус по длине.\n")
+        (princ "Отступ должен быть больше радиуса округления корпуса.\n")
         (setq if_checker 0)
       )
     )
@@ -286,23 +332,24 @@
       (setq screen_offset nil)
     )
   )
-  (setq screen_width (- body_width (* 2 screen_offset)))
+  
   (setq screen_len (- body_len (+ (* 2 screen_offset) (+ buttons_offset (* 2 button_radius)))))
+  (setq screen_width (- body_width (* 2 screen_offset)))
   
   (setq screen_height (getreal "Укажите высоту экрана: "))
   (setq screen_rounding nil)
   (while (= screen_rounding nil)
     (setq if_checker 1)
-    (setq screen_rounding (getreal "Укажите радиус округления экрана: "))
-    (if (>= (* 2 screen_rounding) screen_width)
+    (setq screen_rounding (getreal "Укажите диаметр округления экрана: "))
+    (if (>= screen_rounding screen_width)
       (progn
-        (princ "Радиус округления должен быть в два раза меньше ширины экрана.\n")
+        (princ "Диаметр округления должен быть меньше ширины экрана.\n")
         (setq if_checker 0)
       )
     )
-    (if (>= (* 2 screen_rounding) screen_len)
+    (if (>= screen_rounding screen_len)
       (progn
-        (princ "Радиус округления должен быть в два раза меньше длины экрана.\n")
+        (princ "Диаметр округления должен быть меньше длины экрана.\n")
         (setq if_checker 0)
       )
     )
@@ -311,7 +358,8 @@
     )
   )
   ; Построение экрана
-  (rounded_rect (list screen_offset screen_offset body_height) screen_len screen_width screen_height screen_rounding)
+  (rounded_rect (list screen_offset screen_offset body_height) screen_len screen_width screen_height (/ screen_rounding 2))
+  (command "_union" mainbody_box (entlast) "")
   
   
   ;======================================
