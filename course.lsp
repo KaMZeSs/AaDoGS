@@ -336,7 +336,7 @@
     (setq if_checker 1)
     (initget (+ 1 2 4))
     (setq screen_rounding (getreal (strcat "Укажите диаметр округления экрана (x <= " (rtos max_val) ") : " )))
-    (if (> screen_rounding max_val)
+    (if (>= screen_rounding max_val)
       (progn
         (setq if_checker 0)
       )
